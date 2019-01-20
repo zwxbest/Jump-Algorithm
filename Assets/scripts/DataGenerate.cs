@@ -4,8 +4,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+enum PointerEnum {
+   INDEX_TEXT,
+   PARTITION_VALUE,
+   PARTITION_POS
+};
+
 public class DataGenerate : MonoBehaviour {
 
+    public GameObject test;
 
     public GameObject partitionValuePrefab;
 
@@ -42,7 +49,7 @@ public class DataGenerate : MonoBehaviour {
 
     public GameObject parititonGo;
 
-	private float animStepTime = 0.5f;
+	private float animStepTime = 1f;
 
     private string positionX = "m_AnchoredPosition.x";
     
@@ -78,7 +85,7 @@ public class DataGenerate : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-
+      
     }
 
 
@@ -93,7 +100,7 @@ public class DataGenerate : MonoBehaviour {
         for (int i = 0; i < 7; i++) {
             GameObject instance = Instantiate(elementPrefab);
             instance.transform.SetParent(elementParent.transform);
-            Transform elementIamge = instance.transform.FindChild("elementImage");
+            Transform elementIamge = instance.transform.Find("elementImage");
             elementIamge.name = "element" + i.ToString();
             instance.transform.localPosition = new Vector3(-179 + 60 * i, 50, 0);
             elementIamge.GetComponent<Image>().color = colors[i % 7];
@@ -111,9 +118,9 @@ public class DataGenerate : MonoBehaviour {
                 height = arr[i];
             }
             arr[i] = height;
-            instance.transform.FindChild("indexText").GetComponent<Text>().text = i.ToString();
+            instance.transform.Find("indexText").GetComponent<Text>().text = i.ToString();
             elementIamge.GetComponent<RectTransform>().sizeDelta = new Vector2(33, height * segHeight);
-            elementIamge.FindChild("num").GetComponent<Text>().text = height.ToString();
+            elementIamge.Find("num").GetComponent<Text>().text = height.ToString();
             //元素集合
             elements.Add(elementIamge.gameObject);
         }
@@ -151,6 +158,17 @@ public class DataGenerate : MonoBehaviour {
                 indexText.Value.gameObject.GetComponent<Animation>().PlayQueued("clip");
             }
         }
+        foreach (var dic in partitionValueDicDic) {
+            foreach (var go in dic.Value) {
+                go.Value.gameObject.GetComponent<Animation>().PlayQueued("clip");
+            }
+        }
+
+        foreach (var dic in partitionPosDicDic) {
+            foreach (var go in dic.Value) {
+                go.Value.gameObject.GetComponent<Animation>().PlayQueued("clip");
+            }
+        }
     }
 
 
@@ -166,18 +184,6 @@ public class DataGenerate : MonoBehaviour {
 		quickSort(arr, l, p - 1, round + 1);
 		quickSort(arr, p + 1, r, round + 1);
 	}
-
-    private GameObject getPartitionValue(int round,int startIndexInRound) {
-        GameObject partitionValue;
-        if (!partitionValueDic.ContainsKey(round)) {
-            partitionValue = Instantiate(partitionValuePrefab);
-            partitionValue.transform.SetParent(partitionValueParent.transform);
-            partitionValue.transform.position = elements[startIndexInRound].transform.position + new Vector3(0, 100, 0);
-            partitionValue.transform.localScale = Vector3.zero;
-            partitionValueDic.Add(round, partitionValue);
-        }
-        return partitionValueDic[round];
-    }
 
     private void fixElementPos(int round,int indexInRound) {
         for(int i= 0;i <elements.Count;i++) {
@@ -199,20 +205,27 @@ public class DataGenerate : MonoBehaviour {
 		int partition = left;
         int i = left + 1;
         int indexInRound = 0;
-        var indexText = getIndexGo(round, i);
+        var indexText = getPointerGo(round, i,PointerEnum.INDEX_TEXT);
+        var partitionValue = getPointerGo(round, left,PointerEnum.PARTITION_VALUE);
+        var partitionPos = getPointerGo(round, left+1, PointerEnum.PARTITION_POS);
         for (; i <= right; i++,indexInRound++) {
-            createIndexMoveAnim(round,i == right, indexInRound, left + 1);
+            createPointerGoAnim(round,left+1,right,i,i,PointerEnum.INDEX_TEXT);
+            createPointerGoAnim(round, left, right,i-1,left, PointerEnum.PARTITION_VALUE);
+            createPointerGoAnim(round, left+1, right, i, partition, PointerEnum.PARTITION_POS);
             fixElementPos(round,indexInRound);
             if (arr[i] < v) {
-				partition++;
+                indexInRound++;
+                partition++;
                 swap(arr, partition, i);
                 createSwapAnim(i,partition, round, left + 1, indexInRound);
             }
-		}
+            
+        }
 
 		if (left != partition) {
+            indexInRound++;
 			swap(arr, left, partition);
-             createSwapAnim(left, partition, round, left + 1, indexInRound);
+            createSwapAnim(left, partition, round, left + 1, indexInRound);
         }
 		return partition;
 	}
@@ -223,48 +236,101 @@ public class DataGenerate : MonoBehaviour {
 		arr[j] = t;
 
     }
-    private Keyframe getKeyFrame(int round,int globalIndex,int indexInRound) {
-
+    private float getKeyTime(int round, int globalIndex, int indexInRound) {
         float startTime = round == 1 ? 0 : roundLengthSumDic[round - 1] * animStepTime;
         float keyTime = startTime + animStepTime * indexInRound;
-        float diff = globalIndex * unitDistance;
-        return new Keyframe(keyTime,startPositionX + diff);
-    }
-    //获取index的初始位置
-    private GameObject getIndexGo(int round,int globalIndex) {
-        GameObject indexText = Instantiate(indexTextPrefab);
-        indexText.transform.SetParent(indexTextParent.transform);
-        indexText.name = "indexText" + round;
-        GameObject element = elements[globalIndex];
-        indexText.transform.position = new Vector3(element.transform.position.x, element.transform.position.y - 180, element.transform.position.z);
-        indexText.transform.localScale = Vector3.zero;
-        Dictionary<int, GameObject> indexTextDic;
-        if (indexTextDicDic.ContainsKey(round)) {
-            indexTextDic = indexTextDicDic[round];
-        } else {
-            indexTextDic = new Dictionary<int, GameObject>();
-            indexTextDicDic.Add(round, indexTextDic);
-        }
-        indexTextDic.Add(globalIndex, indexText);
-        return indexText;
+        return keyTime;
     }
 
-        private void createIndexMoveAnim(int round,bool isLast,int indexInRound,int roundStartIndex) {
-        GameObject indexText = indexTextDicDic[round][roundStartIndex];
-        Animation animation = getOrNewAnimation(indexText);
+    private float getKeyValue(int globalIndex) {
+        float diff = globalIndex * unitDistance;
+        return startPositionX + diff;
+    }
+
+    private GameObject getPointerGo(int round, int globalIndex,PointerEnum pointer) {
+        GameObject prefab = null;
+        GameObject goParent = null;
+        int yOffset = 0;
+        string goName = null;
+        Dictionary<int,Dictionary<int,GameObject>> goDicDic = null;
+        switch (pointer) {
+            case PointerEnum.INDEX_TEXT:
+                prefab = indexTextPrefab;
+                goParent = indexTextParent;
+                yOffset = -120;
+                goDicDic = indexTextDicDic;
+                goName = "indexText";
+                break;
+            case PointerEnum.PARTITION_VALUE:
+                prefab = partitionValuePrefab;
+                goParent = partitionValueParent;
+                yOffset = 200;
+                goDicDic = partitionValueDicDic;
+                goName = "parititionValue";
+                break;
+            case PointerEnum.PARTITION_POS:
+                prefab = partitionPosPrefab;
+                goParent = partitionPosParent;
+                yOffset = 200;
+                goDicDic = partitionPosDicDic;
+                goName = "partitionPos";
+                break;
+        }
+        GameObject go = Instantiate(prefab);
+        go.name = goName + "_" + round + "_" + globalIndex;
+        go.transform.SetParent(goParent.transform);
+        GameObject element = elements[globalIndex];
+        go.GetComponent<RectTransform>().anchoredPosition = new Vector2(startPositionX+globalIndex*60, element.GetComponent<RectTransform>().anchoredPosition.y + yOffset);
+        go.transform.localScale = Vector3.zero;
+        Dictionary<int, GameObject> goDic;
+        if (goDicDic.ContainsKey(round)) {
+            goDic = goDicDic[round];
+        } else {
+            goDic = new Dictionary<int, GameObject>();
+            goDicDic.Add(round, goDic);
+        }
+        goDic.Add(globalIndex, go);
+        return go;
+    }
+
+
+    private void createPointerGoAnim(int round, int startIndex, int right, int timeGlobalIndex,int valueGlobalIndex,PointerEnum pointer) {
+        Dictionary<int, Dictionary<int, GameObject>> goDicDic = null;
+        switch (pointer) {
+            case PointerEnum.INDEX_TEXT:
+                goDicDic = indexTextDicDic;
+                break;
+            case PointerEnum.PARTITION_VALUE:
+                goDicDic = partitionValueDicDic;
+                break;
+            case PointerEnum.PARTITION_POS:
+                goDicDic = partitionPosDicDic;
+                break;
+        }
+
+        GameObject go = goDicDic[round][startIndex];
+        Animation animation = getOrNewAnimation(go);
         AnimationClip clip = getOrNewClip(animation, clipName);
-        AnimationCurve curve = getOrNewCurves(clip, new Type[] { typeof(RectTransform) }, new string[] { positionX },new float[] { 0f})[positionX];
-        Keyframe keyFrame = getKeyFrame(round,roundStartIndex+indexInRound, indexInRound);
-        curve.AddKey(keyFrame);
+        AnimationCurve curve = getOrNewCurves(clip, new Type[] { typeof(RectTransform) }, new string[] { positionX }, new float[] { 0f })[positionX];
+        float time = getKeyTime(round, timeGlobalIndex, timeGlobalIndex - startIndex);
+        float value = getKeyValue(valueGlobalIndex);
+        if(go.name == "partitionPos_1_1") {
+            Debug.Log(string.Format("{0} _ {1}", time, value));
+        }
+        if (time == 0f) {
+            curve.RemoveKey(0);
+        }
+        curve.AddKey(time, value);
         clip.SetCurve("", typeof(RectTransform), positionX, curve);
         //第一个时显示,最后一个时隐藏
-        if(isLast||indexInRound == 0) {
+        if (timeGlobalIndex == startIndex || timeGlobalIndex == right) {
             AnimationEvent showEvent = new AnimationEvent();
             showEvent.functionName = "toggleVisible";
-            showEvent.time = keyFrame.time;
+            showEvent.time = time;
             clip.AddEvent(showEvent);
         }
     }
+
 
 
 	private void createSwapAnim(int i,int j,int round,int startIndexInRound,int indexInRound){

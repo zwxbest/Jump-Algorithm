@@ -21,6 +21,5 @@ public class testAnimationEvent : MonoBehaviour {
         } else {
             this.gameObject.transform.localScale = Vector3.one;
         }
-       
     }
 }

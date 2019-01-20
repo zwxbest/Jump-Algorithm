@@ -63,6 +63,7 @@ namespace Assets.scripts {
                 thisRoundLength++;
                 if (arr[i] < v) {
                     partition++;
+                    thisRoundLength++;
                     swap(arr, partition, i);
                 }
             }
@@ -75,6 +76,7 @@ namespace Assets.scripts {
                 }
             }
             if (left != partition) {
+                thisRoundLength++;
                 swap(arr, left, partition);
             }
             return partition;
