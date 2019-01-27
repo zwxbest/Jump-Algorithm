@@ -1,6 +1,6 @@
 # Jump-Algorithm
-Help people to learn basic algorithm by watch and debug animation.
-You can see how algorithm runs and debug it step by step.
+use animation to demonstrate basic algorithm
+You can also see algorithm  step by step.
 # Sort
 - [ ] Quick Sort
 - [x] Bubble Sort
