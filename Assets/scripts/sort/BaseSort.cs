@@ -18,7 +18,7 @@ public class BaseSort : MonoBehaviour {
 
     private RunMode curMode = RunMode.ALL;
 
-    private List<GameObject> elements = new List<GameObject>();
+    protected List<GameObject> elements = new List<GameObject>();
 
     private float animStepTime = 0.5f;
 
@@ -57,6 +57,10 @@ public class BaseSort : MonoBehaviour {
     protected Text inputFieldText;
 
     private Text error;
+
+    private float tempPosX = 101;
+
+    protected GameObject temp;
 
     private float initTimeScale = 1f;
    public virtual void Start() {
@@ -120,14 +124,20 @@ public class BaseSort : MonoBehaviour {
     /// 从a移动到b，元素，单向的
     /// </summary>
     /// <param name="a"></param>
-    /// <param name="b"> 大于6或者小于0表示移动到temp，其他表示移动到element位置</param>
+    /// <param name="b">-1表示移动到temp</param>
     /// <param name="round"></param>
     protected void createOneWayElementAnim(int a, int b, int round) {
         Sequence seq = getOrNewSeq(round);
-        if(b != -1) {
+        if(a == -1) {
+            createTempAmin(b, false, round);
+            elements[b] = temp;
+        }
+        else if(b == -1) {
+            createTempAmin(a, true, round);
+            temp = elements[a];
+        } else {
             createElementAnim(a, b, round);
             elements[b] = elements[a];
-        }else {
 
         }
     }
@@ -162,6 +172,21 @@ public class BaseSort : MonoBehaviour {
         float targetX =  startPositionX +j * unitDistance;
         Tweener t1 = element.transform.DOMoveX(targetX, animStepTime);
         seq.Append(t1);
+    }
+
+    private void createTempAmin(int i,bool toTemp, int round) {
+      
+        Tweener t;
+       Sequence seq = getOrNewSeq(round);
+        if (toTemp) {
+            GameObject go = elements[i];
+            t = go.transform.DOMoveX(tempPosX, animStepTime);
+        } else {
+            float targetX = startPositionX + i * unitDistance;
+            t = temp.transform.DOMoveX(targetX, animStepTime);
+   
+        }
+        seq.Append(t);
     }
 
     private Sequence getOrNewSeq(int round) {
@@ -234,8 +259,8 @@ public class BaseSort : MonoBehaviour {
         DOTween.KillAll();
         roundSeqDic.Clear();
         generateBtn.GetComponentInChildren<Text>().text = "生成数据";
-        foreach(GameObject go in elements) {
-            Destroy(go.transform.parent.gameObject);
+        for (int i= 0; i < elementParent.transform.childCount;i++) {
+            Destroy(elementParent.transform.GetChild(i).gameObject);
         }
         elements.Clear();
 

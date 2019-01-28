@@ -73,15 +73,17 @@ public class InsertionSort3 : BaseSort {
             createRoundPointerGoAnim(round, iPointerInfo);
             newStepPointerGo(round, i, jPointerInfo);
             int e = arr[i];
+            createOneWayElementAnim(i, -1, round);
             int j = i;
             for (; j > 0 && arr[j - 1] > e ; j--) {
                 createStepPointerGoAnim(round, i, i, 1, j, j, jPointerInfo);
                 arr[j] = arr[j - 1];
+                createOneWayElementAnim(j - 1, j, round);
             }
             arr[j] = e;
-
+            Debug.Log(string.Format("e is {0} and move to {1}", temp.name, j));
+            createOneWayElementAnim(-1, j, round);
       }
-
 
     }
 }
