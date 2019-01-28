@@ -1,4 +1,5 @@
 ﻿using DG.Tweening;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -53,8 +54,12 @@ public class BaseSort : MonoBehaviour {
 
     private GameObject lastRoundOne;
 
+    protected Text inputFieldText;
 
-    void Start() {
+    private Text error;
+
+    private float initTimeScale = 1f;
+   public virtual void Start() {
         indexTextPrefab = (GameObject)Resources.Load("prefabs/index");
         pointerPrefab = (GameObject)Resources.Load("prefabs/PointerPrefab");
         elementPrefab = (GameObject)Resources.Load("prefabs/ElementPrefab");
@@ -66,15 +71,29 @@ public class BaseSort : MonoBehaviour {
         runBtn = GameObject.Find("Run").GetComponent<Button>();
         dataDropDown = GameObject.Find("DataDropDown").GetComponent<Dropdown>();
         slider = GameObject.Find("SpeedSlider/Slider").GetComponent<Slider>();
+        inputFieldText = GameObject.Find("InputField/Text").GetComponent<Text>();
         slider.onValueChanged.AddListener(OnSliderValueChange);
         generateBtn.onClick.AddListener(Click);
         runBtn.onClick.AddListener(Run);
+        dataDropDown.onValueChanged.AddListener(dataDropDownChange);
+        error = GameObject.Find("Error").GetComponent<Text>();
+        inputFieldText.transform.parent.GetComponent<InputField>().text = "7,6,2,3,4,5,1";
     }
 
     public void OnSliderValueChange(float value) {
-        DOTween.timeScale = 1+ value*20;
+        initTimeScale = 1 + value * 20;
+        DOTween.timeScale = initTimeScale;
     }
 
+    public virtual void dataDropDownChange(int i) {
+      
+        if (i == 4) {
+            inputFieldText.transform.parent.localScale = Vector3.one;
+
+        } else {
+            inputFieldText.transform.parent.localScale = Vector3.zero;
+        }
+    }
 
     public void Run() {
         if (curMode == RunMode.STEP) {
@@ -97,6 +116,21 @@ public class BaseSort : MonoBehaviour {
        
    }
 
+    /// <summary>
+    /// 从a移动到b，元素，单向的
+    /// </summary>
+    /// <param name="a"></param>
+    /// <param name="b"> 大于6或者小于0表示移动到temp，其他表示移动到element位置</param>
+    /// <param name="round"></param>
+    protected void createOneWayElementAnim(int a, int b, int round) {
+        Sequence seq = getOrNewSeq(round);
+        if(b != -1) {
+            createElementAnim(a, b, round);
+            elements[b] = elements[a];
+        }else {
+
+        }
+    }
 
     protected void createElementAnims(int a, int b, int round) {
 
@@ -124,10 +158,9 @@ public class BaseSort : MonoBehaviour {
    }
     private void createElementAnim(int i, int j, int round) {
         GameObject element = elements[i].gameObject;
-        //实际的index
-        int realIndex = int.Parse(element.name.Replace("element", ""));
         Sequence seq = getOrNewSeq(round);
-        Tweener t1 = element.transform.DOMoveX(element.transform.position.x + (j - realIndex) * unitDistance, animStepTime);
+        float targetX =  startPositionX +j * unitDistance;
+        Tweener t1 = element.transform.DOMoveX(targetX, animStepTime);
         seq.Append(t1);
     }
 
@@ -219,6 +252,7 @@ public class BaseSort : MonoBehaviour {
         globalSequence = DOTween.Sequence();
         globalSequence.Pause();
         DOTween.SetTweensCapacity(500, 50);
+        DOTween.timeScale = initTimeScale;
 
         DOTween.logBehaviour = LogBehaviour.Verbose;
         if (runDropDown.value == 0) {
@@ -229,6 +263,9 @@ public class BaseSort : MonoBehaviour {
             curMode = RunMode.ALL;
         }
         int[] arr = instantiateElement();
+        if(arr == null) {
+            return;
+        }
         sort(arr);
         foreach (var entry in roundSeqDic) {
             if (curMode == RunMode.ROUND) {
@@ -244,18 +281,7 @@ public class BaseSort : MonoBehaviour {
     private int[] instantiateElement() {
         int[] arr = new int[7];
         GameObject[] gos = GameObject.FindGameObjectsWithTag("Player");
-        if (gos != null) {
-            foreach (GameObject go in gos) {
-                Destroy(go);
-            }
-        }
         for (int i = 0; i < 7; i++) {
-            GameObject instance = Instantiate(elementPrefab);
-            instance.transform.SetParent(elementParent.transform);
-            Transform elementIamge = instance.transform.Find("elementImage");
-            elementIamge.name = "element" + i.ToString();
-            instance.transform.localPosition = new Vector3(-179 + 60 * i, 50, 0);
-            elementIamge.GetComponent<Image>().color = colors[i % 7];
             int height = 0;
             if (dataDropDown.value == 0) {
                 height = random.Next(1, 8);
@@ -266,9 +292,30 @@ public class BaseSort : MonoBehaviour {
             } else if (dataDropDown.value == 3) {
                 height = 7 - i;
             } else if (dataDropDown.value == 4) {
-                arr = new int[] { 7, 6, 2, 3, 4, 5, 1 };
-                height = arr[i];
+               string[] inputs =  inputFieldText.text.Split(new char[] { ',' });
+               if(inputs.Length != 7) {
+                    error.text = "请输入7个数字!";
+                    Tween twneer = error.gameObject.transform.DOScale(1, 3).SetLoops(2,LoopType.Yoyo);
+                    return null;
+                }
+                try {
+                    height = int.Parse(inputs[i]);
+                    if(height > 7) {
+                        throw new Exception("最大不能大于7");
+                    }
+                } catch (Exception e) {
+                    error.text = e.Message;
+                    Tween twneer = error.gameObject.transform.DOScale(1, 3).SetLoops(2, LoopType.Yoyo);
+                    return null;
+                }
+          
             }
+            GameObject instance = Instantiate(elementPrefab);
+            instance.transform.SetParent(elementParent.transform);
+            Transform elementIamge = instance.transform.Find("elementImage");
+            elementIamge.name = "element" + i.ToString();
+            instance.transform.localPosition = new Vector3(-179 + 60 * i, 50, 0);
+            elementIamge.GetComponent<Image>().color = colors[i % 7];
             arr[i] = height;
             instance.transform.Find("indexText").GetComponent<Text>().text = i.ToString();
             elementIamge.GetComponent<RectTransform>().sizeDelta = new Vector2(33, height * segHeight);
@@ -301,7 +348,7 @@ public class BaseSort : MonoBehaviour {
         go.name = info.baseName + "_" + round + "_" + globalIndex;
         go.GetComponent<Text>().text = info.baseName;
         go.transform.SetParent(info.goParent.transform);
-        Vector3 pos = elements[globalIndex].transform.position;
+        Vector3 pos = elements[0].transform.position;
         go.transform.position = new Vector3(startPositionX + globalIndex * 60, pos.y + info.yOffset, pos.z);
         go.transform.localScale = Vector3.zero;
         go.transform.FindChild("Image").transform.localEulerAngles = new Vector3(0,0, info.rotation);
